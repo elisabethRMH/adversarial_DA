@@ -135,30 +135,6 @@ direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsF34try1_newNorm
 #direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsF34try2_L2reg_minlayer/SEMISUP0.7unlabeled/'
 
 
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn/FULLYSUP0.0unlabeled/'
-#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_2/SEMISUP0.0unlabeled/'
-##direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_2/FULLYSUP0.0unlabeled/'
-direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch/SEMISUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch/FULLYSUP0.0unlabeled/'
-#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup/SEMISUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup/FULLYSUP0.0unlabeled/'
-#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup_regdown/SEMISUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup_regdown/FULLYSUP0.0unlabeled/'
-#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum/SEMISUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum/FULLYSUP0.0unlabeled/'
-#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_n1Huy/SEMISUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_n1Huy/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_2/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_3/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_4/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum_2/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum_3/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum_4/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_5/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_6/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_7/FULLYSUP0.0unlabeled/'
-direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_8/FULLYSUP0.0unlabeled/'
 
 #direct1='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsF34try4_newNorm2_L2reg_minlayer/FULLYSUP0.8unlabeled/'
 #direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsF34try4_newNorm2_L2reg_minlayer/SEMISUP0.8unlabeled/'
@@ -520,14 +496,6 @@ direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry9_newNorm
 #direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry11_newNorm2_L2reg_minlayer_equalbatches_3/SEMISUP0.7unlabeled/'
 
 
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_n1Huy/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_2/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_3/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_4/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_2/FULLYSUP0.0unlabeled/'
-#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_3/FULLYSUP0.0unlabeled/'
-
 #direct1='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry12_newNorm2_L2reg_minlayer_equalbatches/FULLYSUP0.8unlabeled/'
 #direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry12_newNorm2_L2reg_minlayer_equalbatches/SEMISUP0.8unlabeled/'
 #direct1='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry12_newNorm2_L2reg_minlayer_equalbatches/FULLYSUP0.9unlabeled/'
@@ -714,11 +682,48 @@ direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry17_newNor
 #direct1='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry19_classifierinput_3/FULLYSUP0.7unlabeled/'
 #direct2='/volume1/scratch/ehereman/results_adversarialDA/V2_C34vsEOGtry19_classifierinput_3/SEMISUP0.7unlabeled/'
 
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn/FULLYSUP0.0unlabeled/'
+#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_2/SEMISUP0.0unlabeled/'
+##direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_2/FULLYSUP0.0unlabeled/'
+direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch/SEMISUP0.0unlabeled/'
+direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch/FULLYSUP0.0unlabeled/'
+#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup/SEMISUP0.0unlabeled/'
+direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup/FULLYSUP0.0unlabeled/'
+#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup_regdown/SEMISUP0.0unlabeled/'
+direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_LRup_regdown/FULLYSUP0.0unlabeled/'
+#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum/SEMISUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum/FULLYSUP0.0unlabeled/'
+#direct2='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_n1Huy/SEMISUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_n1Huy/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_2/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_3/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_4/FULLYSUP0.0unlabeled/'
+direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum/FULLYSUP0.0unlabeled/'
+direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum_2/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum_3/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_1ch_losssum_4/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_5/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_6/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_7/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineF34_e2earnn_1ch_losssum_8/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_n1Huy/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_2/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_3/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baseline_e2earnn_3ch_losssum_4/FULLYSUP0.0unlabeled/'
+direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_2/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_3/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_5/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_6/FULLYSUP0.0unlabeled/'
+#direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_7/FULLYSUP0.0unlabeled/'
+direct1='/volume1/scratch/ehereman/results_adversarialDA/baselineEOG_e2earnn_1ch_losssum_only5pat/FULLYSUP0.0unlabeled/'
+
+
 file= 'eval_result_log.txt'
 file= 'test_result_log.txt'
 acc_list=[]
 
-for direct in [direct1,direct2]:
+for direct in [direct1]:
     file1= open(os.path.join(direct, file), "r")
     endfile = False
     acc=[]
@@ -740,7 +745,7 @@ for direct in [direct1,direct2]:
 labels = ['Fully supervised','Semi-supervised']
 colors=['k','r','c','m','b','g']#'k',
 #plt.xlabel('Train step (10^3)')
-#plt.figure()
+plt.figure()
 plt.ylabel('Validation accuracy')
 for i in range(len(acc_list)):
     accs= np.array(acc_list[i])
