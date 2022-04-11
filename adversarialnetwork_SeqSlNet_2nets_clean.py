@@ -100,7 +100,7 @@ class AdversarialNet_SeqSlNet_2nets(object):
                 self.labels.append(lab_i)
                 self.predictions.append(pred_i)
 
-                if self.config.pseudolabels or self.config.SNweighting or self.config.SNweightingpslab:
+                if self.config.pseudolabels:
                     score_i_targetpseudo = fc((self.features2[:,i,:]),
                                     self.config.nhidden2 * 2,
                                     self.config.nclass,
@@ -229,12 +229,6 @@ class AdversarialNet_SeqSlNet_2nets(object):
                     
                     self.output_loss_i_target=  tf.nn.softmax_cross_entropy_with_logits(labels=tmpy[:,i,:], logits=self.scores_target[i])
                     self.output_loss_i_target = tf.boolean_mask(self.output_loss_i_target, tf.dtypes.cast(mask4,tf.bool)) #mask3
-                    if self.config.DCweighting:
-                        self.weights= 1+calc_weights(self.domain_gt, self.predictions_D[i], mask4, normalize_weights=False)
-                        self.output_loss_i_target = tf.math.multiply(self.output_loss_i_target, self.weights)                    
-                    elif self.config.SNweighting:
-                        self.weights = tf.boolean_mask(tf.math.reduce_max(self.labels_targetpseudo[i],1), tf.dtypes.cast(mask4,tf.bool))
-                        self.output_loss_i_target = tf.math.multiply(self.output_loss_i_target, self.weights)                    
                         
                         
                     self.output_loss_i_target = tf.reduce_sum(self.output_loss_i_target)
@@ -262,14 +256,6 @@ class AdversarialNet_SeqSlNet_2nets(object):
                             tmpy2prev=tmpy2
                     self.output_loss_i_target=  tf.nn.softmax_cross_entropy_with_logits(labels=tmpy2, logits=self.scores_target[i])
                     self.output_loss_i_target = tf.boolean_mask(self.output_loss_i_target, tf.dtypes.cast(tf.dtypes.cast(self.training,tf.float32)-tf.dtypes.cast(mask4,tf.float32),tf.bool))
-                    if self.config.DCweightingpslab:
-                        domain_gt= tf.stop_gradient(self.domain_gt)
-                        self.weights= calc_weights(domain_gt, self.predictions_D[i], 1-mask4, normalize_weights=False) #as a mask, we want the unlabeled target samples
-                        self.output_loss_i_target = tf.math.multiply(self.output_loss_i_target, self.weights)
-                    
-                    elif self.config.SNweightingpslab:
-                        self.weights = tf.boolean_mask(tf.math.reduce_max(self.labels_targetpseudo[i],1), tf.dtypes.cast(1-mask4,tf.bool))#mask4 for 1hot labels we are quite sure about
-                        self.output_loss_i_target = tf.math.multiply(self.output_loss_i_target, self.weights)                    
                         
                     self.output_loss_i_target = tf.reduce_sum(self.output_loss_i_target)
                     self.output_loss_target_ps += self.weightpslab*self.output_loss_i_target
@@ -347,13 +333,9 @@ class AdversarialNet_SeqSlNet_2nets(object):
                 self.loss+=self.l2_loss_targetnet
             if self.config.withtargetlabels :
                 self.loss+=1.0*(self.output_loss_target) #
-                if self.config.adversarialentropymin:
-                    self.targetclasslayer_loss+= self.output_loss_target
             
             if self.config.pseudolabels or self.config.crossentropy:
                 self.loss+= self.output_loss_target_ps
-                if self.config.adversarialentropymin:
-                    self.targetclasslayer_loss-= self.output_loss_target_ps
             if self.config.domainclassifier:
                 self.loss+= self.domain_loss_sum *self.config.domain_lambda
             if self.config.mmd_loss:

@@ -31,7 +31,7 @@ from scipy.io import loadmat
 
 #from arnn_sleep_sup import ARNN_Sleep
 from adversarialnetwork_SeqSlNet_2nets_clean import AdversarialNet_SeqSlNet_2nets
-from fmandclassmodel_config import Config
+from ada_config import Config
 
 from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
@@ -173,17 +173,13 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
             config.domainclassifier=True
             config.shareDC=False
             config.shareLC=False
+            config.mmd_loss=False #
             config.mmd_weight=1
-            config.mmd_loss=False
-            config.DCweighting=False
-            config.SNweighting=False
+
             # config.pseudolabels = False
-            config.DCweightingpslab=False
-            config.SNweightingpslab=False
+
             # config.weightpslab=0.1
             config.crossentropy=False
-            config.classheads2=False
-            config.adversarialentropymin=False
             # config.minneighbordiff=False
             config.evaluate_every=100
             config.subjectclassifier = False
@@ -256,7 +252,6 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
     #                    best_dir = os.path.join(checkpoint_path, "best_model_acc")
     #                    saver.restore(sess, best_dir)
                         saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
-                        # if config.withtargetlabels or config.classheads2 or config.advdropout:# or config.pseudolabels:
                         var_list1 = {}
                         for v1 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'output_layer/output'):
                             tmp = v1.name.replace(v1.name[0:v1.name.index('-')],'output_layer/output')
@@ -266,13 +261,13 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                         saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                         var_list2= {}
                         for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source'):
-                            tmp=v2.name[v2.name.find('filterbank'):-2]
+                            tmp=v2.name[v2.name.find('/')+1:-2]
                             var_list2[tmp]=v2
                         saver2=tf.train.Saver(var_list=var_list2)
                         saver2.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                         var_list2= {}
                         for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_target'):
-                            tmp=v2.name[v2.name.find('filterbank'):-2]
+                            tmp=v2.name[v2.name.find('/')+1:-2]
                             var_list2[tmp]=v2
                         saver2=tf.train.Saver(var_list=var_list2)
                         saver2.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
@@ -298,7 +293,7 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                         var_list2= {}
                         for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source'):
                             
-                            tmp=v2.name[v2.name.find('filterbank'):-2]
+                            tmp=v2.name[v2.name.find('/')+1:-2]
                             if tmp[0]=='2':
                                 continue
                             var_list2[tmp]=v2
@@ -308,7 +303,7 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                         if config.diffattn:
                             var_list2= {}
                             for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source/2'):
-                                tmp=v2.name[v2.name.find('filterbank'):-2]
+                                tmp=v2.name[v2.name.find('/')+1:-2]
           
                                 var_list2[tmp]=v2
                             saver2=tf.train.Saver(var_list=var_list2)
@@ -411,9 +406,7 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                             total_loss += total_loss_
                             domain_loss += domain_loss_
                             test_step += 1
-    #                    if len(gen.datalist) - test_step*config.batch_size==1:
-    #                        yhat=yhat[0:-1]
-    #                        ygt=ygt[0:-1]
+
                                 
                         if len(gen.datalist) > test_step*config.batch_size:
                             (x_batch,y_batch)=gen.get_rest_batch(test_step)
