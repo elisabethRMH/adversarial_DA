@@ -4,11 +4,12 @@ Adversarial DA for Dreem dataset
 The components here are:
     - Source net (feature extractor +  classifier)
     - Target net (feature extractor + classifier)
+    - Domain discriminator
     
 Losses are:
     - discriminator loss (minimax or GAN, GAN loss in final version)
     - supervised class loss (for the source data, few target recordings or both)
-    - pseudo-label or cross-entropy loss
+    - pseudo-label (or cross-entropy loss: not in final version)
     - potential MMD loss: not added in final version
     
 This version; source network gets data from MASS dataset, target network gets data from the dreem dataset
@@ -20,8 +21,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="-1" #force not using GPU!
 import numpy as np
 import tensorflow as tf
 import math
-#from tensorflow.python.client import device_lib
-#print(device_lib.list_local_devices())
+
 
 import shutil, sys
 from datetime import datetime
@@ -37,65 +37,53 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import cohen_kappa_score
 
-from datagenerator_from_list_v2 import DataGenerator
-
 sys.path.insert(0, "/users/sista/ehereman/Documents/code/adapted_tb_classes")
 from subgenfromfile_ReadHuyData import SubGenFromFileHuy
-
-sys.path.insert(0, "/users/sista/ehereman/Documents/code/general")
-from save_functions import *
-
-sys.path.insert(0, "/users/sista/ehereman/Documents/code/adapted_tb_classes")
 from subgenfromfile_epochsave import SubGenFromFile
 
-filename="/users/sista/ehereman/Documents/code/feature_mapping/dreem_subsets_25pat.mat" #Fz or Fp2, they are in channel 5 #46pat_osaprosp
+from save_functions import *
 
+
+filename="dreem_subsets_25pat.mat" #Fz or Fp2, they are in channel 5 #46pat_osaprosp
 files_folds=loadmat(filename)
-#filename='/users/sista/ehereman/GitHub/SeqSleepNet/data_processing/train_test_eval.mat'
-#files_folds=loadmat(filename)
-normalize=True
 
-root = '/esat/stadiustempdatasets/ehereman/dreemdata'
+
 root = '/esat/stadiusdata/public/Dreem'
 source=root+'/processed_tb/dreem25-healthy-headbandpsg2'
 
 def train_nn(files_folds, source, config,foldrange=range(12)):
 
-    #
-    #root = '/esat/biomeddata/ehereman/MASS_toolbox'
-    number_patients=2
+
+    number_patients=config.number_patients
     #VERSION WITH PATIENT GROUPS
     for fold in foldrange:
         for pat_group in range(1):#int(26/number_patients)):
     
             fileidx=np.arange(pat_group* number_patients,(pat_group+1)*number_patients)
-            fileidx1= np.arange(0,24,2)
-            fileidx2= np.arange(1,24,2)
+
             test_files=files_folds['test_sub'][0][fold][0]
             eval_files=files_folds['eval_sub'][0][fold][0]
-            retrain_files=files_folds['train_sub'][0][fold][0][fileidx]
-            train_files1 = files_folds['train_sub'][0][fold][0]#[fileidx1]
+            train_files_target_labeled=files_folds['train_sub'][0][fold][0][fileidx]
+            train_files_target = files_folds['train_sub'][0][fold][0]
             
             # config= Config()
             config.epoch_seq_len=10
             config.epoch_step=config.epoch_seq_len
-        
-    
-            
+                    
             # #Both C4-A1 & new channel of sleep uzl
             test_generator=SubGenFromFile(source,shuffle=False, batch_size=config.batch_size, subjects_list=test_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True, file_per_subject=True)
             batch_size=8
-            retrain_generator= SubGenFromFile(source,shuffle=True, batch_size=batch_size,subjects_list=retrain_files,  sequence_size=config.epoch_seq_len,normalize_per_subject=True, file_per_subject=True)
+            retrain_generator= SubGenFromFile(source,shuffle=True, batch_size=batch_size,subjects_list=train_files_target_labeled,  sequence_size=config.epoch_seq_len,normalize_per_subject=True, file_per_subject=True)
             eval_generator= SubGenFromFile(source,shuffle=False, batch_size=config.batch_size,  subjects_list=eval_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True, file_per_subject=True)
            
             
-            # new channel of dreem
-            train_generator1= SubGenFromFile(source,shuffle=True, batch_size=config.batch_size,subjects_list=train_files1,  sequence_size=config.epoch_seq_len,normalize_per_subject=True, file_per_subject=True)
+            # Target dataset: new channel of dreem
+            train_generator1= SubGenFromFile(source,shuffle=True, batch_size=config.batch_size,subjects_list=train_files_target,  sequence_size=config.epoch_seq_len,normalize_per_subject=True, file_per_subject=True)
             train_generator1.batch_size=int(np.floor(len(train_generator1.datalist)/len(retrain_generator)))
     
-            # C4-A1 of MASS dataset
+            # Source dataset: C4-A1 of MASS dataset
             eeg_train_data= "/esat/asterie1/scratch/ehereman/data_processing_SeqSlNet/tf_data3/seqsleepnet_eeg/train_list_total.txt"
-            list1= [eeg_train_data]#, eeg_train_data] #TODO pas aan aeens dat alles in orde is
+            list1= [eeg_train_data]
             train_generator= SubGenFromFileHuy(filelist_lst=list1,shuffle=True, batch_size=config.batch_size,  sequence_size=config.epoch_seq_len,normalize_per_subject=True)
             train_generator.batch_size=train_generator1.batch_size #min(int(np.floor(len(train_generator.datalist)/len(retrain_generator))),200)
                 
@@ -113,7 +101,10 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
             tf.app.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
             tf.app.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
             
+            # Load pre-trained model from this path
             tf.app.flags.DEFINE_string("out_dir1", '/esat/asterie1/scratch/ehereman/results_SeqSleepNet_tb/totalmass2/seqsleepnet_sleep_nfilter32_seq10_dropout0.75_nhidden64_att64_1chan_subjnorm/total', "Point to output directory")
+            
+            # Save adapted model to this path
             tf.app.flags.DEFINE_string("out_dir", config.out_dir0+'/n{:d}/group{:d}'.format( fold, pat_group), "Point to output directory")
             tf.app.flags.DEFINE_string("checkpoint_dir", "./checkpoint/", "Point to checkpoint directory")
             
@@ -126,7 +117,6 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
             tf.app.flags.DEFINE_integer("nhidden1", 64, "Sequence length (default: 20)")
             tf.app.flags.DEFINE_integer("attention_size1", 64, "Sequence length (default: 20)")
             
-            tf.app.flags.DEFINE_integer('D',100,'Number of features') #new flag!
             
             FLAGS = tf.app.flags.FLAGS
             print("\nParameters:")
@@ -137,14 +127,15 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
             # Data Preparatopn
             # ==================================================
             
+            #save paths
             # path where some output are stored
             out_path = os.path.abspath(os.path.join(os.path.curdir,FLAGS.out_dir))
             # path where checkpoint models are stored
             checkpoint_path = os.path.abspath(os.path.join(out_path,FLAGS.checkpoint_dir))
             if not os.path.isdir(os.path.abspath(out_path)): os.makedirs(os.path.abspath(out_path))
             if not os.path.isdir(os.path.abspath(checkpoint_path)): os.makedirs(os.path.abspath(checkpoint_path))
-    
-    #        out_path1 = os.path.abspath(os.path.join(os.path.curdir,FLAGS.out_dir1))
+            
+            #restore pre-trained model paths
             out_path1= FLAGS.out_dir1 #os.path.join(FLAGS.out_dir1, 'FULLYSUP{}unlabeled'.format(0.0))
             # path where checkpoint models are stored
             checkpoint_path1 = os.path.abspath(os.path.join(out_path1,FLAGS.checkpoint_dir))
@@ -158,50 +149,42 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
             config.nhidden1 = FLAGS.nhidden1
             config.attention_size1 = FLAGS.attention_size1
             config.nchannel = 1
-            config.training_epoch = int(20) #/6 if using load_random_tuple
-            # config.training_epoch = int(5000*retrain_generator.batch_size/len(retrain_generator.datalist)) #We want this to reflect 5000 steps
-            config.same_network=True
-            config.feature_extractor=True
+            config.training_epoch = int(20)
+            config.same_network=True #same feature extractor network for source & target
             config.learning_rate=1e-4
-            config.mult_channel=False
-            # config.withtargetlabels=False
-            config.channel = 3 #F7-F8
-            config.add_classifieroutput=False
-            config.GANloss=True
-            # config.domain_lambda= 0.1
-            config.fix_sourceclassifier=False
-            config.domainclassifier=True
-            config.shareDC=False
-            config.shareLC=False
-            config.mmd_loss=False #
-            config.mmd_weight=1
-
+            config.channel = 3 #channel number corresponding to F7-F8
+            config.GANloss=True #GAN loss (if false, we use a gradient reversal layer)
+            config.domainclassifier=True #always put to true (unless we use MMD loss instead)
+            
+            #Settings specified/varied outside the training function.
             # config.pseudolabels = False
-
             # config.weightpslab=0.1
-            config.crossentropy=False
             # config.minneighbordiff=False
-            config.evaluate_every=100
-            config.subjectclassifier = False
-            config.subject_lambda=0.01
-            config.diffattn=False
-            config.regtargetnet=False
-            config.KLregularization=False
+            # config.withtargetlabels=False
+            # config.domain_lambda= 0.1
+           
+            #Settings/functionalities not used in final version of paper
+            config.crossentropy=False #crossentropy loss: alternative for pseudo-labels
+            config.shareDC=False #shared domain classifier for the full sequence
+            config.shareLC=False #shared label classifier fro the full sequence
+            config.mmd_loss=False #MMD loss (alternative for adversarial training, domain adaptation with matching distributions)
+            config.mmd_weight=1 #weight of mmd loss
+            config.add_classifieroutput=False #add classifier output to the domain classifier input
+            config.fix_sourceclassifier=False
+            
             train_batches_per_epoch = np.floor(len(retrain_generator)).astype(np.uint32)
             eval_batches_per_epoch = np.floor(len(eval_generator)).astype(np.uint32)
             test_batches_per_epoch = np.floor(len(test_generator)).astype(np.uint32)
             
-            # config.evaluate_every= train_batches_per_epoch #int(100*number_patients*2/40)
-            # config.checkpoint_every = config.evaluate_every
             #E: nb of epochs in each set (in the sense of little half second windows)
             print("Train/Eval/Test set: {:d}/{:d}/{:d}".format(len(train_generator1.datalist), len(eval_generator.datalist), len(test_generator.datalist)))
             
-            #E: nb of batches to run through whole dataset = nb of sequences (20 consecutive epochs) divided by batch size
+            #E: nb of batches to run through whole dataset = nb of sequences divided by batch size
             print("Train/Eval/Test batches per epoch: {:d}/{:d}/{:d}".format(train_batches_per_epoch, eval_batches_per_epoch, test_batches_per_epoch))
             
             
             
-            # variable to keep track of best fscore
+            # variable to keep track of best performance
             best_fscore = 0.0
             best_acc = 0.0
             best_loss=np.inf
@@ -246,7 +229,8 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
             
                     saver = tf.train.Saver(tf.all_variables(), max_to_keep=1)
                     saver1 = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='output_layer/output-'),max_to_keep=1)
-                    if not config.same_network:
+                    
+                    if not config.same_network: # 2 separate feature extractors
                         sess.run(tf.initialize_all_variables())
     #                    ##REstore
     #                    best_dir = os.path.join(checkpoint_path, "best_model_acc")
@@ -271,9 +255,8 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                             var_list2[tmp]=v2
                         saver2=tf.train.Saver(var_list=var_list2)
                         saver2.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
-                        #saver1 = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='output_layer'),max_to_keep=1)
                         saver1 = tf.train.Saver(tf.all_variables(), max_to_keep=1)
-                    else:                    
+                    else:          #shared feature extractor           
                         # initialize all variables
                         sess.run(tf.initialize_all_variables())
     #                    ##REstore
@@ -294,20 +277,12 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                         for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source'):
                             
                             tmp=v2.name[v2.name.find('/')+1:-2]
-                            if tmp[0]=='2':
-                                continue
+                            # if tmp[0]=='2':
+                            #     continue
                             var_list2[tmp]=v2
                         saver2=tf.train.Saver(var_list=var_list2)
                         saver2.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                         
-                        if config.diffattn:
-                            var_list2= {}
-                            for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source/2'):
-                                tmp=v2.name[v2.name.find('/')+1:-2]
-          
-                                var_list2[tmp]=v2
-                            saver2=tf.train.Saver(var_list=var_list2)
-                            saver2.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
     
                         # saver1 = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='output_layer'),max_to_keep=1)
                         saver1 = tf.train.Saver(tf.all_variables(), max_to_keep=1)
@@ -332,7 +307,7 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                           arnn.weightpslab:config.weightpslab
                           
                         }
-                        if config.domainclassifier:
+                        if config.domainclassifier and config.GANloss:
                             _,_, step, output_loss, total_loss, accuracy = sess.run(
                                [train_op, train_op2, global_step, arnn.output_loss, arnn.loss, arnn.accuracy],
                                feed_dict)
@@ -448,19 +423,15 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                             # Get a batch
                             #((x_batch, y_batch),_) = train_generator[step]
                             t1=time.time()        
-                            #Batch - : C4-A1 of mass
+                            #Batch 3 : C4-A1 of mass
                             (x_batch3,y_batch3)=train_generator[step]
                             x_batch3=np.append(x_batch3,np.zeros(x_batch3.shape),axis=-1)
-                            #batch 3: C4-A1 of sleep uzl
-                            # (x_batch3,y_batch3)=train_generator2[step]
-                            # x_batch3=x_batch3[:,:,:,:,[0]]
-                            # x_batch3=np.append(x_batch3,np.zeros(x_batch3.shape),axis=-1)
-                            # #batch 1: fz of sleep uzl
+                            # #batch 1: target channel of Dreem
                             (x_batch1,y_batch1)=train_generator1[step]
                             x_batch1=x_batch1[:,:,:,:,[config.channel]]                        
                             x_batch1=np.append(np.zeros(x_batch1.shape),x_batch1,axis=-1)
                             if config.withtargetlabels:
-                                #batch 2: c4a1&fz of sleepuzl
+                                #batch 2: c4a1& target channel of dreem
                                 (x_batch2,y_batch2)=retrain_generator[step]
                                 x_batch2=x_batch2[:,:,:,:,[ 0,config.channel]]
                                 # x_batch2=np.append(np.zeros(x_batch2.shape),x_batch2,axis=-1)
@@ -472,9 +443,6 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                                 x_batch0=np.vstack([x_batch1, x_batch3]) #X_batch
                                 y_batch0=np.vstack([np.zeros(y_batch1.shape), y_batch3])  #y_batch
                             
-                            #Stack all the batches in one batch. 
-                            # x_batch0=np.vstack([x_batch2,x_batch,x_batch1])
-                            # y_batch0=np.vstack([y_batch2,y_batch,y_batch1])
                             
                             t2=time.time()
                             time_lst.append(t2-t1)                        
@@ -521,7 +489,6 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                         train_generator.on_epoch_end()
                         retrain_generator.on_epoch_end()
                         train_generator1.on_epoch_end()
-                        # train_generator2.on_epoch_end()
                         
                     end_time = time.time()
                     with open(os.path.join(out_dir, "training_time.txt"), "a") as text_file:

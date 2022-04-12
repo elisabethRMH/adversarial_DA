@@ -20,7 +20,7 @@ class Config(object):
         self.epoch_step = self.epoch_seq_len
         self.nhidden1 = 64
         self.nlayer1 = 1
-        self.attention_size1 = 32
+        self.attention_size1 = 64
         self.nhidden2 = 64
         self.nlayer2 = 1       
         self.feature_extractor=True
@@ -28,11 +28,11 @@ class Config(object):
         self.domain_lambda= 0.01
         self.domainclassifier=True
         
-        self.nfilter = 20
+        self.nfilter = 32
         self.nfft = 256
         self.samplerate = 100
         self.lowfreq = 0
         self.highfreq = 50
 
-        self.evaluate_every = 200
-        self.checkpoint_every = 200
+        self.evaluate_every = 100
+        self.checkpoint_every = 100

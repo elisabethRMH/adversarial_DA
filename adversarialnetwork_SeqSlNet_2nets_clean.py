@@ -15,9 +15,8 @@ import sys
 import tensorflow as tf
 sys.path.insert(1,'/users/sista/ehereman/GitHub/SeqSleepNet/tensorflow_net/SeqSleepNet')
 from nn_basic_layers import fc
-sys.path.insert(1,'/users/sista/ehereman/Documents/code/feature_mapping/')
+# sys.path.insert(1,'/users/sista/ehereman/Documents/code/feature_mapping/')
 from seqsleepnet_sleep_featureextractor import seqsleepnet_featureextractor #V2 is without the fc layer!
-from seqsleepnet_sleep_featureextractor_diffattn import seqsleepnet_featureextractor_diffattn
 sys.path.insert(1,'/users/sista/ehereman/GitHub/gradient_reversal_keras_tf')
 from flipGradientTF import GradientReversal #24/08/20 different implementation of flip layer. check if same
 import tensorflow.keras.backend as K
@@ -40,34 +39,26 @@ class AdversarialNet_SeqSlNet_2nets(object):
         self.training=tf.placeholder(tf.bool,shape=(), name='training')
         self.weightpslab=tf.placeholder(tf.float32, shape=(),name='weightpslab')
         
-        if config.feature_extractor:
-                with tf.device('/gpu:0'), tf.variable_scope("seqsleepnet_source"):
-                    op = self.input_x[:,:,:,:,0:1]
-                    tmp= tf.boolean_mask(op,tf.dtypes.cast(self.source_bool, tf.bool))
-                    frame_tmp= tf.repeat(tf.boolean_mask(self.frame_seq_len,tf.dtypes.cast(self.source_bool, tf.bool)),self.config.epoch_seq_len, axis=0)
-                    epoch_tmp= tf.boolean_mask(self.epoch_seq_len,tf.dtypes.cast(self.source_bool, tf.bool))
-         
-                    self.features1 =seqsleepnet_featureextractor(self.config,tmp, self.dropout_keep_prob_rnn, frame_tmp, epoch_tmp, reuse=False, istraining=self.training) #number=1
+        with tf.device('/gpu:0'), tf.variable_scope("seqsleepnet_source"):
+            op = self.input_x[:,:,:,:,0:1]
+            tmp= tf.boolean_mask(op,tf.dtypes.cast(self.source_bool, tf.bool))
+            frame_tmp= tf.repeat(tf.boolean_mask(self.frame_seq_len,tf.dtypes.cast(self.source_bool, tf.bool)),self.config.epoch_seq_len, axis=0)
+            epoch_tmp= tf.boolean_mask(self.epoch_seq_len,tf.dtypes.cast(self.source_bool, tf.bool))
+ 
+            self.features1 =seqsleepnet_featureextractor(self.config,tmp, self.dropout_keep_prob_rnn, frame_tmp, epoch_tmp, reuse=False, istraining=self.training) #number=1
 
-                    #Now target feature extractor:
-                    tmp= tf.boolean_mask(self.input_x,tf.dtypes.cast(self.target_bool, tf.bool))
-                    frame_tmp= tf.repeat(tf.boolean_mask(self.frame_seq_len,tf.dtypes.cast(self.target_bool, tf.bool)),self.config.epoch_seq_len, axis=0)
-                    epoch_tmp= tf.boolean_mask(self.epoch_seq_len,tf.dtypes.cast(self.target_bool, tf.bool))       
-                    if config.same_network:
-                        self.features2 =seqsleepnet_featureextractor(self.config, tmp[:,:,:,:,1:2], self.dropout_keep_prob_rnn, frame_tmp, epoch_tmp, reuse=True, istraining = self.training) #number=1
-                        if config.diffattn:
-                            reuseattn=not config.diffattn
-                            reuseepochrnn= not config.diffepochrnn
-                            self.features2= seqsleepnet_featureextractor_diffattn(self.config, tmp[:,:,:,:,1:2], self.dropout_keep_prob_rnn, frame_tmp, epoch_tmp, reuse=True, istraining = self.training, reuseattn=reuseattn, reuseepochrnn=reuseepochrnn) #number=1
+            #Now target feature extractor:
+            tmp= tf.boolean_mask(self.input_x,tf.dtypes.cast(self.target_bool, tf.bool))
+            frame_tmp= tf.repeat(tf.boolean_mask(self.frame_seq_len,tf.dtypes.cast(self.target_bool, tf.bool)),self.config.epoch_seq_len, axis=0)
+            epoch_tmp= tf.boolean_mask(self.epoch_seq_len,tf.dtypes.cast(self.target_bool, tf.bool))       
+            if config.same_network:
+                self.features2 =seqsleepnet_featureextractor(self.config, tmp[:,:,:,:,1:2], self.dropout_keep_prob_rnn, frame_tmp, epoch_tmp, reuse=True, istraining = self.training) #number=1
+                
+        if not config.same_network:
+            with tf.device('/gpu:0'), tf.variable_scope("seqsleepnet_target"):
+                self.features2 =seqsleepnet_featureextractor(self.config, tmp[:,:,:,:,1:2], self.dropout_keep_prob_rnn, frame_tmp, epoch_tmp, reuse=False, istraining = self.training) #number=1
+     
                         
-                if not config.same_network:
-                    with tf.device('/gpu:0'), tf.variable_scope("seqsleepnet_target"):
-                        self.features2 =seqsleepnet_featureextractor(self.config, tmp[:,:,:,:,1:2], self.dropout_keep_prob_rnn, frame_tmp, epoch_tmp, reuse=False, istraining = self.training) #number=1
-         
-                        
-        else:
-            self.features1 =tf.placeholder(tf.float32, [None, config.epoch_seq_len, self.config.nhidden2*2])
-            self.features2 =tf.placeholder(tf.float32, [None, config.epoch_seq_len, self.config.nhidden2*2])
             
         self.scores = []
         self.labels=[]
@@ -243,8 +234,6 @@ class AdversarialNet_SeqSlNet_2nets(object):
                     if self.config.pseudolabels:                            
                         tmpy2= self.labels_targetpseudo[i]
                         # tmpy2= self.onehot_targetpseudo[i]
-                        #TODO adapt mask!
-                        # mask4= (1-mask3)*tf.dtypes.cast(tf.math.reduce_max(self.labels_targetpseudo[i],1)>0.5, tf.float32)
                     elif self.config.crossentropy or self.config.minneighbordiff:
                         tmpy2=self.labels_target[i]
                     if self.config.minneighbordiff:
@@ -261,18 +250,14 @@ class AdversarialNet_SeqSlNet_2nets(object):
                     self.output_loss_target_ps += self.weightpslab*self.output_loss_i_target
 
                     
-                    
-                # if self.config.domainclassifier: #Training both domain classifier and label classifier
+                #Domain loss & domain classifier loss    
                 self.domain_loss_sum_i, self.domain_loss_i= domainclassification_costs(labels= tf.dtypes.cast(self.domain_gt,tf.bool), logits= self.scores_D[i])
                 if self.config.GANloss: #The loss for the domain classifier.
                     self.domainclass_loss_sum_i, self.domainclass_loss_i= self.domain_loss_sum_i, self.domain_loss_i
                     self.domainclass_loss_sum+= self.domain_loss_sum_i
                     if config.domainclassifier:
                         labels=tf.dtypes.cast(1-self.domain_gt,tf.bool)
-                        # labels=tf.ones_like(self.domain_gt)*0.5
                         self.domain_loss_sum_i, self.domain_loss_i= domainclassification_costs(labels= labels, logits= self.scores_D[i])
-                        #adding boolean mask for only target shouldn't make difference when source net = fixed?
-                        # self.domain_loss_i=tf.boolean_mask(self.domain_loss_i,tf.dtypes.cast(1-self.domain_gt, tf.bool)) #we only want to keep target which is the second part of the predictions with domain_gt=0
                         self.domain_loss_sum += tf.reduce_sum(self.domain_loss_i)
                     else:
                         self.domain_loss_sum=tf.constant(0)
@@ -282,6 +267,7 @@ class AdversarialNet_SeqSlNet_2nets(object):
                 else:
                     self.domain_loss_sum=tf.constant(0)
                     self.domain_loss=tf.zeros_like(self.output_loss)
+                #MMD loss
                 if self.config.mmd_loss:
                     self.mmd_loss= mmd_loss(self.features1, self.features2)
                 
@@ -322,15 +308,8 @@ class AdversarialNet_SeqSlNet_2nets(object):
             #         coll2.append(v-v2)
             #     self.l2_loss_outputtarget= tf.add_n([tf.nn.l2_loss(v) for v in coll2])
             #     self.loss+=self.l2_loss_outputtarget
-            if config.regtargetnet:
-                coll2=[]
-                coll = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'seqsleepnet_target')
-                for v in coll:
-                    tmp = v.name.replace('_target','_source')
-                    v2=[v1 for v1 in tf.compat.v1.global_variables() if tmp in v1.name][0]
-                    coll2.append(v-v2)
-                self.l2_loss_targetnet= tf.add_n([tf.nn.l2_loss(v) for v in coll2])
-                self.loss+=self.l2_loss_targetnet
+            
+            
             if self.config.withtargetlabels :
                 self.loss+=1.0*(self.output_loss_target) #
             
