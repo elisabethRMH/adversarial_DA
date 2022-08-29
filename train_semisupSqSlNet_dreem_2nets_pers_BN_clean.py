@@ -28,7 +28,6 @@ import time
 from scipy.io import loadmat
 
 from adversarialnetwork_SeqSlNet_2nets_clean import AdversarialNet_SeqSlNet_2nets
-
 from ada_config import Config
 
 from sklearn.metrics import f1_score
@@ -50,10 +49,11 @@ filename="./dreem_subsets_25pat.mat"
 
 files_folds=loadmat(filename)
 
-
+root = '/esat/stadiustempdatasets/ehereman/dreemdata'
 root = '/esat/stadiusdata/public/Dreem'
 source=root+'/processed_tb/dreem25-healthy-headbandpsg2'
 
+#
 number_patients=2
 #VERSION WITH PATIENT GROUPS
 for fold in range(12):
@@ -62,8 +62,7 @@ for fold in range(12):
         # fileidx=np.arange(pat_group* number_patients,(pat_group+1)*number_patients)
 
         test_files=[files_folds['test_sub'][0][fold][0][pat_group]]
-        train_files2 = files_folds['train_sub'][0][fold][0]#[fileidx1]
-
+        train_files1 = files_folds['train_sub'][0][fold][0]#[fileidx1]
         
         config= Config()
         config.epoch_seq_len=10
@@ -73,11 +72,11 @@ for fold in range(12):
         # Individual patient test data
         test_generator=SubGenFromFile(source,shuffle=False, batch_size=config.batch_size, subjects_list=test_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True, file_per_subject=True)
         batch_size=8
-        retrain_generator= SubGenFromFile(source,shuffle=True, batch_size=batch_size,subjects_list=test_files, sequence_size=config.epoch_seq_len,normalize_per_subject=True, file_per_subject=True)
+        retrain_generator= SubGenFromFile(source,shuffle=True, batch_size=batch_size,subjects_list=test_files, sequence_size=config.epoch_seq_len,normalize_per_subject=True)
         eval_generator= test_generator#SubGenFromFile(source,shuffle=False, batch_size=config.batch_size,  subjects_list=eval_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True)
        
         # Rest of patients training data
-        train_generator2= SubGenFromFile(source,shuffle=True, batch_size=config.batch_size,subjects_list=train_files2,  sequence_size=config.epoch_seq_len,normalize_per_subject=True,file_per_subject=True)
+        train_generator2= SubGenFromFile(source,shuffle=True, batch_size=config.batch_size,subjects_list=test_files,  sequence_size=config.epoch_seq_len,normalize_per_subject=True,file_per_subject=True) #train_files1
         
         # Individual patient training data (=test data)
         train_generator1= SubGenFromFile(source,shuffle=True, batch_size=config.batch_size,subjects_list=test_files,  sequence_size=config.epoch_seq_len,normalize_per_subject=True, file_per_subject=True)
@@ -98,7 +97,8 @@ for fold in range(12):
         tf.app.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
         
         tf.app.flags.DEFINE_string("out_dir1", '/esat/asterie1/scratch/ehereman/results_transferlearning/dreem/25pat/seqslnet_transferlearning_massc34tof7f8_subjnorm_sdtrain21pat_2/n{:d}/group0'.format( fold,pat_group), "Point to output directory")
-        tf.app.flags.DEFINE_string("out_dir", '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/personalization/seqslnet_advDA_fzfp2tofzfp2_fromTL_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_lambdaps001_noKL_pslab01-2_10epevalevery100_4_shuffle3_subjnorm_fz{:d}pat/n{:d}/group{:d}'.format(number_patients, fold, pat_group), "Point to output directory")
+        tf.app.flags.DEFINE_string("out_dir", '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/personalization/seqslnet_advDA_fzfp2tofzfp2_fromTL_samenetwork_all_fixSN_fixedbatch32_noKL_pslab_BN2_10epevalevery100_4_shuffle3_subjnorm_fz{:d}pat/n{:d}/group{:d}'.format(number_patients, fold, pat_group), "Point to output directory")
+
         tf.app.flags.DEFINE_string("checkpoint_dir", "./checkpoint/", "Point to checkpoint directory")
         
         tf.app.flags.DEFINE_float("dropout_keep_prob_rnn", 0.75, "Dropout keep probability (default: 0.75)")
@@ -134,6 +134,7 @@ for fold in range(12):
         if not os.path.isdir(os.path.abspath(out_path1)): os.makedirs(os.path.abspath(out_path1))
         if not os.path.isdir(os.path.abspath(checkpoint_path1)): os.makedirs(os.path.abspath(checkpoint_path1))
         
+
         config.dropout_keep_prob_rnn = FLAGS.dropout_keep_prob_rnn
         config.epoch_seq_len = FLAGS.seq_len
         config.epoch_step = FLAGS.seq_len
@@ -149,12 +150,11 @@ for fold in range(12):
         config.domainclassifier=True
         config.GANloss=True
         config.domain_lambda= 0.01
-        config.fix_sourceclassifier=False
+        config.fix_sourceclassifier=True #Main difference with normal personalization
         config.pseudolabels = True
         config.weightpslab=0.01
         config.withtargetlabels=False
         config.minneighbordiff=False
-
 
         #Settings/functionalities not used in final version of paper
         config.crossentropy=False #crossentropy loss: alternative for pseudo-labels
@@ -163,6 +163,8 @@ for fold in range(12):
         config.mmd_loss=False #MMD loss (alternative for adversarial training, domain adaptation with matching distributions)
         config.mmd_weight=1 #weight of mmd loss
         config.add_classifieroutput=False #add classifier output to the domain classifier input
+                
+
                 
         train_batches_per_epoch = np.floor(len(train_generator1)).astype(np.uint32)
         eval_batches_per_epoch = np.floor(len(eval_generator)).astype(np.uint32)
@@ -194,23 +196,24 @@ for fold in range(12):
             with sess.as_default():
                 arnn=AdversarialNet_SeqSlNet_2nets(config)
         
-                # Define Training procedure
+                # # Define Training procedure
                 global_step = tf.Variable(0, name="global_step", trainable=False)
-                optimizer = tf.train.AdamOptimizer(config.learning_rate)
+                ##NO optimizer since we are not updating any layers but the batch norm
+                # optimizer = tf.train.AdamOptimizer(config.learning_rate)
                 
                 
-                domainclass_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'domainclassifier_net')
-                if config.fix_sourceclassifier:
-                    excl= [var for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'seqsleepnet_source')]# + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'output_layer/output-') ]
-                else:
-                    excl=[]
-                allvars= [var for var in tf.trainable_variables() if (var not in domainclass_vars and var not in excl)]
-                grads_and_vars = optimizer.compute_gradients(arnn.loss, var_list=allvars)
-                train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
-                if config.GANloss:
-                    global_step2 = tf.Variable(0, name="global_step2", trainable=False)
-                    grads_and_vars2 = optimizer.compute_gradients(arnn.domainclass_loss_sum, var_list = domainclass_vars)
-                    train_op2 = optimizer.apply_gradients(grads_and_vars2, global_step=global_step2)
+                # domainclass_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'domainclassifier_net')
+                # if config.fix_sourceclassifier:
+                #     excl= [var for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'seqsleepnet_source')+ tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'output_layer/output-') ]
+                # else:
+                #     excl=[]
+                # allvars= [var for var in tf.trainable_variables() if (var not in domainclass_vars and var not in excl)]
+                # grads_and_vars = optimizer.compute_gradients(arnn.loss, var_list=allvars)
+                # train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+                # if config.GANloss:
+                #     global_step2 = global_step#tf.Variable(0, name="global_step2", trainable=False)
+                #     grads_and_vars2 = optimizer.compute_gradients(arnn.domainclass_loss_sum, var_list = domainclass_vars)
+                #     train_op2 = optimizer.apply_gradients(grads_and_vars2, global_step=global_step2)
 
         
         
@@ -249,7 +252,7 @@ for fold in range(12):
                     saver1 = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='output_layer/output-'),max_to_keep=1)
 
                     saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
-                    var_list1 = {}
+                   var_list1 = {}
                     for v1 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'output_layer/output'):
                         tmp = v1.name.replace(v1.name[0:v1.name.index('-')],'output_layer/output')
                         tmp=tmp[:-2]
@@ -258,13 +261,13 @@ for fold in range(12):
                     saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                     
                     var_list2= {}
-                    for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source'):                        
+                    for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source'):
+                        
                         tmp=v2.name[v2.name.find('/')+1:-2]
                         var_list2[tmp]=v2
                     saver2=tf.train.Saver(var_list=var_list2)
                     saver2.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                     
-
                     saver1 = tf.train.Saver(tf.all_variables(), max_to_keep=1)
                 print("Model loaded")
         
@@ -275,7 +278,7 @@ for fold in range(12):
                     frame_seq_len = np.ones(len(x_batch)*config.epoch_seq_len,dtype=int) * config.frame_seq_len
                     epoch_seq_len = np.ones(len(x_batch),dtype=int) * config.epoch_seq_len
                     feed_dict = {
-                     arnn.target_bool:target_bool,
+                      arnn.target_bool:target_bool,
                       arnn.source_bool: source_bool,
                       arnn.input_x: x_batch,
                       arnn.input_y: y_batch,
@@ -285,25 +288,15 @@ for fold in range(12):
                       arnn.training: True,
                       arnn.weightpslab:config.weightpslab
                     }
-                    if config.GANloss:
-                        if config.pseudolabels or config.crossentropy:
-                            _,_, step, output_loss, output_loss_target, domain_loss,total_loss, accuracy = sess.run(
-                               [train_op, train_op2, global_step, arnn.output_loss, arnn.output_loss_target_ps, arnn.domain_loss_sum, arnn.loss, arnn.accuracy],
-                               feed_dict)
-                        else:
-                            _,_, step, output_loss, output_loss_target, domain_loss,total_loss, accuracy = sess.run(
-                               [train_op, train_op2, global_step, arnn.output_loss, arnn.output_loss_target, arnn.domain_loss_sum, arnn.loss, arnn.accuracy],
-                               feed_dict)
-                            
+                    if config.pseudolabels or config.crossentropy:
+                        step, output_loss, output_loss_target, domain_loss,total_loss, accuracy = sess.run(
+                           [ global_step, arnn.output_loss, arnn.output_loss_target_ps, arnn.domain_loss_sum, arnn.loss, arnn.accuracy],
+                           feed_dict)
                     else:
-                        if config.pseudolabels or config.crossentropy:
-                            _, step, output_loss, output_loss_target, domain_loss,total_loss, accuracy = sess.run(
-                               [train_op, global_step, arnn.output_loss, arnn.output_loss_target_ps, arnn.domain_loss_sum, arnn.loss, arnn.accuracy],
-                               feed_dict)
-                        else:
-                            _, step, output_loss,output_loss_target, domain_loss, total_loss, accuracy = sess.run(
-                               [train_op, global_step, arnn.output_loss,arnn.output_loss_target, arnn.domain_loss_sum, arnn.loss, arnn.accuracy],
-                               feed_dict)
+                        step, output_loss, output_loss_target, domain_loss,total_loss, accuracy = sess.run(
+                           [global_step, arnn.output_loss, arnn.output_loss_target, arnn.domain_loss_sum, arnn.loss, arnn.accuracy],
+                           feed_dict)
+                        
                     return step, output_loss,output_loss_target, domain_loss, total_loss, np.mean(accuracy)
         
                 def dev_step(x_batch, y_batch):
@@ -311,7 +304,7 @@ for fold in range(12):
                     epoch_seq_len = np.ones(len(x_batch),dtype=int) * config.epoch_seq_len
                     feed_dict = {
                         arnn.target_bool:np.ones(len(x_batch)),
-                        arnn.source_bool: np.ones(len(x_batch)),                        
+                        arnn.source_bool: np.ones(len(x_batch)),
                         arnn.input_x: x_batch,
                         arnn.input_y: y_batch,
                         arnn.dropout_keep_prob_rnn: 1.0,
@@ -329,6 +322,7 @@ for fold in range(12):
                     return output_loss, output_loss_target, domain_loss, total_loss, yhat, yhattarget, yhatD
         
         
+
                 def evaluate(gen, log_filename):
                     # Validate the model on the entire evaluation test set after each epoch
                     datalstlen=len(gen.datalist)
@@ -363,7 +357,6 @@ for fold in range(12):
                         domain_loss += domain_loss_
                         output_loss_target += output_loss_target_
                         test_step += 1
-
                             
                     if len(gen.datalist) > test_step*config.batch_size:
                         (x_batch,y_batch)=gen.get_rest_batch(test_step)
@@ -399,21 +392,22 @@ for fold in range(12):
                 # Loop over number of epochs
                 # eval_acc, eval_yhat, eval_output_loss,eval_output_loss_target, eval_total_loss = evaluate(gen=eval_generator, log_filename="eval_result_log.txt")
                 # test_acc, test_yhat, test_output_loss,test_output_loss_target, test_total_loss = evaluate(gen=test_generator, log_filename="test_result_log.txt")
+                global_step_=0
                 for epoch in range(config.training_epoch):
 
                     print("{} Epoch number: {}".format(datetime.now(), epoch + 1))
                     step = 0
                     while step < train_batches_per_epoch:
 
-                        current_step = tf.train.global_step(sess, global_step)
-                        
+                        current_step = global_step_#tf.train.global_step(sess, global_step)
                         if current_step % config.evaluate_every == 0:
                             # Validate the model on the entire evaluation test set after each epoch
                             print("{} Start validation".format(datetime.now()))
                             eval_acc, eval_yhat, eval_output_loss,eval_output_loss_target, eval_total_loss = evaluate(gen=eval_generator, log_filename="eval_result_log.txt")
-                            #test_acc, test_yhat, test_output_loss,eval_output_loss_target, test_total_loss = evaluate(gen=test_generator, log_filename="test_result_log.txt")
+                            # test_acc, test_yhat, test_output_loss,eval_output_loss_target, test_total_loss = evaluate(gen=test_generator, log_filename="test_result_log.txt")
                             
-                            if eval_output_loss_target < best_total_loss: 
+
+                            if eval_output_loss_target < best_total_loss: #train_total_loss_
                                 checkpoint_name1 = os.path.join(checkpoint_path, 'model_step_TRAIN' + str(current_step) +'.ckpt')
                                 save_path1 = saver1.save(sess, checkpoint_name1)
                                 source_file = checkpoint_name1
@@ -423,8 +417,8 @@ for fold in range(12):
                                 shutil.copy(source_file + '.meta', dest_file + '.meta')
                                 best_total_loss = eval_output_loss_target
 
-                        t1=time.time()        
 
+                        t1=time.time()        
                         #source : data of other patients
                         (x_batch3,y_batch3)=train_generator2[step]
                         x_batch3=x_batch3[:,:,:,:,[config.channel]]
@@ -444,7 +438,7 @@ for fold in range(12):
                             y_batch2=np.array([])
                             x_batch0=np.vstack([x_batch1, x_batch3]) #X_batch
                             y_batch0=np.vstack([np.zeros(y_batch1.shape), y_batch3])  #y_batch
-
+                        
                         
                         t2=time.time()
                         time_lst.append(t2-t1)                        
@@ -456,9 +450,11 @@ for fold in range(12):
                         
                         time_str = datetime.now().isoformat()
         
-                        print("{}: step {}, output_loss {}, output_loss_target {}, domain_loss {}, total_loss {} acc {}".format(time_str, train_step_, train_output_loss_, train_output_loss_target_, train_domain_loss_, train_total_loss_, train_acc_))
+                        print("{}: step {}, output_loss {}, output_loss_target {}, domain_loss {}, total_loss {} acc {}".format(time_str, global_step_, train_output_loss_, train_output_loss_target_, train_domain_loss_, train_total_loss_, train_acc_))
                         step += 1
+                        global_step_+=1
         
+                        
         
                     retrain_generator.on_epoch_end()
                     train_generator1.on_epoch_end()
@@ -468,15 +464,14 @@ for fold in range(12):
                 checkpoint_name = os.path.join(checkpoint_path, 'model_step' + str(current_step) +'.ckpt')
                 save_path = saver.save(sess, checkpoint_name)
 
-
                 print("Best model updated")
                 source_file = checkpoint_name
                 dest_file = os.path.join(checkpoint_path, 'best_model_acc')
                 shutil.copy(source_file + '.data-00000-of-00001', dest_file + '.data-00000-of-00001')
                 shutil.copy(source_file + '.index', dest_file + '.index')
                 shutil.copy(source_file + '.meta', dest_file + '.meta')
-
-
+            
+                
                 end_time = time.time()
                 with open(os.path.join(out_dir, "training_time.txt"), "a") as text_file:
                     text_file.write("{:g}\n".format((end_time - start_time)))
@@ -485,7 +480,7 @@ for fold in range(12):
                 save_neuralnetworkinfo(checkpoint_path, 'fmandclassnetwork',arnn,  originpath=__file__, readme_text=
                         'Domain adaptation unsup personalization with GAN loss and classification network on sleep uzl Fz (Fp2 for some files) (with normalization per patient) \n source net and target net are same, initialized with SeqSleepNet trained on mass\n'+
                         'training on {:d} patients \n validation with pseudo-label accuracy \n no batch norm \n baseline net is trained on 190 pat \n batch size 32, WITH target classifier, early stop at best test pseudolabel acc on target. LR 1e-4,  \n'.format(number_patients)+
-                        ' with target classification layer. not fixed source classifier. fixed batch size 32 for source and target!!!  \n'+# \n with pseudolabels: for unmatched target, we use labels from source net classifier for training target net classifier. NOT weighted. \n'+
+                        ' with target classification layer. fixed source classifier. fixed batch size 32 for source and target!!!  \n'+# \n with pseudolabels: for unmatched target, we use labels from source net classifier for training target net classifier. NOT weighted. \n'+
                         '\n unlabeled unmatched fzfp2 data from sleep uzl \n using fzfp2 of sleepuzl train patients in source, only fp2fz of sleepuzl 1 pat in target classifier \n no overlap between patients source/target. \n\n'+
-                        'in this version, eval every step & only 5 epochs, KL regularization wth alpha=.6. \n \n '+
+                        'in this version, eval every 100 step & only 20 epochs, KL regularization wth alpha=.6. \n \n '+
                         print_instance_attributes(config))
