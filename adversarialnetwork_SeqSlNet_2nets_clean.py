@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Domain adaptation network using seqsleepnet for sleep staging
-source & target net are different, get trained separately starting from a network trained on source domain
-it has two option: adversarial domain classifier or MMD loss
+source & target net are the same or different.
+Both adversarial domain classifier and MMD loss are possible to do the domain adaptation.
 
-version with pseudolabels (this means labels by source classifier for target classifier):
+3 options for target labels: No labels, pseudo-labels or real target labels.
 
 Created on Tue May 26 16:40:01 2020
 
@@ -190,11 +190,9 @@ class AdversarialNet_SeqSlNet_2nets(object):
         self.output_loss2 = 0
         self.output_loss_target =0# tf.constant(0)
         self.output_loss_target_ps = 0
-        self.targetclasslayer_loss=0
         self.output_diff_target=0
         self.domain_loss_sum = 0
         self.domainclass_loss_sum=0
-        self.kl_loss=0
         with tf.device('/gpu:0'), tf.name_scope("output-loss"):
             for i in range(self.config.epoch_step):
                 
@@ -278,7 +276,6 @@ class AdversarialNet_SeqSlNet_2nets(object):
             self.domain_loss_sum = self.domain_loss_sum /self.config.epoch_step
             self.domainclass_loss_sum = self.domainclass_loss_sum/ self.config.epoch_step
             self.output_diff_target = self.output_diff_target/self.config.epoch_step
-            self.kl_loss=self.kl_loss/self.config.epoch_step
             # tmp1= tf.boolean_mask(self.features1,tf.dtypes.cast(mask2, tf.bool))
             # tmp2= tf.boolean_mask(self.features2,tf.dtypes.cast(mask3, tf.bool))    
 
@@ -299,15 +296,6 @@ class AdversarialNet_SeqSlNet_2nets(object):
             
             if not self.config.fix_sourceclassifier:
                 self.loss+= self.output_loss
-            # if config.pseudolabels:
-            #     coll2=[]
-            #     coll = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'output_layer/outputtarget')
-            #     for v in coll:
-            #         tmp = v.name.replace('outputtarget','output')
-            #         v2=[v1 for v1 in tf.compat.v1.global_variables() if tmp in v1.name][0]
-            #         coll2.append(v-v2)
-            #     self.l2_loss_outputtarget= tf.add_n([tf.nn.l2_loss(v) for v in coll2])
-            #     self.loss+=self.l2_loss_outputtarget
             
             
             if self.config.withtargetlabels :
@@ -343,8 +331,6 @@ def mse_loss(inputs, outputs,netactive=None,eps=None):
     loss= mse(outputs, inputs)
     if netactive is not None:
         loss = tf.math.multiply(netactive, loss)
-#    total_count1 = tf.to_float(tf.shape(loss)[0])
-#    total_count2= tf.to_float(tf.reduce_sum(tf.dtypes.cast(netactive, tf.int32))) #V2 adaptation Elisabeth 11/08/'20
     if eps is not None:
         loss=tf.math.max(loss,eps)
     return loss, tf.reduce_sum(loss)#*total_count1/total_count2
@@ -391,42 +377,3 @@ def gaussian_kernel(x1, x2, beta = 0.2):
     r = tf.expand_dims(x1, 1)
     return K.exp( -beta * tf.math.reduce_sum(K.square(r - x2), axis=-1))  
 
-# def calc_weights(domain_gt, predictions, mask=None, normalize_weights=True):
-#     '''First version of DC weights: simply use 'how large is target predicted value of domain classifier' = difference with 0, its actual label
-    
-#     '''
-#     predictions_target= tf.boolean_mask(predictions, tf.dtypes.cast(1-domain_gt, tf.bool)) #we only want to keep target which is the second part of the predictions with domain_gt=0
-#     if mask is not None:
-#         predictions_targetmatched= tf.boolean_mask(predictions_target, tf.dtypes.cast(mask,tf.bool)) #mask that selects the paired / matched samples with labels    
-#         if normalize_weights:
-#             return tf.reduce_sum(mask)*(predictions_targetmatched)/tf.reduce_sum(predictions_targetmatched) #if the GAN classifier is more confused, it's going to predict higher values for target (whereas target label is 0)
-#     else: #no mask for the case where we want to select all the target samples
-#         predictions_targetmatched= tf.boolean_mask(predictions_target, tf.dtypes.cast(mask,tf.bool)) #no mask
-#         if normalize_weights:
-#             return tf.shape(predictions_targetmatched)[0]*predictions_targetmatched/tf.reduce_sum(predictions_targetmatched)
-#     return predictions_targetmatched #if no normalization, we don't scale the weights to have a sum equal to the number of samples
-
-def calc_weights(domain_gt, predictions, mask=None, normalize_weights=True):
-    '''New version of DC weights: binary cross-entropy loss of DC classifier = confusion
-    '''
-    bce= tf.keras.losses.BinaryCrossentropy(reduction=tf.compat.v1.losses.Reduction.NONE)
-    crossentr=bce(tf.expand_dims(domain_gt,1), tf.expand_dims(predictions,1))
-    predictions_target= tf.boolean_mask(crossentr, tf.dtypes.cast(1-domain_gt, tf.bool)) #we only want to keep target which is the second part of the predictions with domain_gt=0
-    if mask is not None:
-        predictions_targetmatched= tf.boolean_mask(predictions_target, tf.dtypes.cast(mask,tf.bool)) #mask that selects the paired / matched samples with labels    
-        if normalize_weights:
-            return tf.reduce_sum(mask)*(predictions_targetmatched)/tf.reduce_sum(predictions_targetmatched) #if the GAN classifier is more confused, it's going to predict higher values for target (whereas target label is 0)
-    else: #no mask for the case where we want to select all the target samples
-        predictions_targetmatched= tf.boolean_mask(predictions_target, tf.dtypes.cast(mask,tf.bool)) #no mask
-        if normalize_weights:
-            return tf.shape(predictions_targetmatched)[0]*predictions_targetmatched/tf.reduce_sum(predictions_targetmatched)
-    return predictions_targetmatched #if no normalization, we don't scale the weights to have a sum equal to the number of samples
-
-def kl_loss(true, pred, active_bool=None):
-    kl = tf.keras.losses.KLDivergence(reduction=tf.compat.v1.losses.Reduction.NONE, name='kl')
-    loss= kl(true,pred)
-    if active_bool is not None:
-        loss=tf.math.multiply(active_bool, loss)
-        total_count2= tf.to_float(tf.reduce_sum(tf.dtypes.cast(active_bool, tf.int32))) #V2 adaptation Elisabeth 11/08/'20
-#    meanres = tf.cond(tf.equal(total_count2, tf.constant(0, dtype=tf.float32)), lambda: tf.constant(0.0, tf.float32), lambda: tf.reduce_sum(loss)/total_count2)
-    return loss, tf.reduce_sum((loss)) 

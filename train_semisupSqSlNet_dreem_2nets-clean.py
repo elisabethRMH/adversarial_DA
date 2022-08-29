@@ -9,10 +9,12 @@ The components here are:
 Losses are:
     - discriminator loss (minimax or GAN, GAN loss in final version)
     - supervised class loss (for the source data, few target recordings or both)
-    - pseudo-label (or cross-entropy loss: not in final version)
+    - pseudo-label loss (or cross-entropy loss: not in final version)
     - potential MMD loss: not added in final version
     
 This version; source network gets data from MASS dataset, target network gets data from the dreem dataset
+channel from MASS: C4-A1
+channel from dreem: F7-F8
 '''
 
 
@@ -55,7 +57,6 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
 
 
     number_patients=config.number_patients
-    #VERSION WITH PATIENT GROUPS
     for fold in foldrange:
         for pat_group in range(1):#int(26/number_patients)):
     
@@ -170,7 +171,7 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
             config.mmd_loss=False #MMD loss (alternative for adversarial training, domain adaptation with matching distributions)
             config.mmd_weight=1 #weight of mmd loss
             config.add_classifieroutput=False #add classifier output to the domain classifier input
-            config.fix_sourceclassifier=False
+            config.fix_sourceclassifier=False #not training the source classifier
             
             train_batches_per_epoch = np.floor(len(retrain_generator)).astype(np.uint32)
             eval_batches_per_epoch = np.floor(len(eval_generator)).astype(np.uint32)
