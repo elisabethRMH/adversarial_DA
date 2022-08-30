@@ -72,7 +72,7 @@ for fold in range(12):
         # Individual patient test data
         test_generator=SubGenFromFile(source,shuffle=False, batch_size=config.batch_size, subjects_list=test_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True, file_per_subject=True)
         batch_size=8
-        retrain_generator= SubGenFromFile(source,shuffle=True, batch_size=batch_size,subjects_list=test_files, sequence_size=config.epoch_seq_len,normalize_per_subject=True)
+        retrain_generator= SubGenFromFile(source,shuffle=True, batch_size=batch_size,subjects_list=test_files, sequence_size=config.epoch_seq_len,normalize_per_subject=True, file_per_subject=True)
         eval_generator= test_generator#SubGenFromFile(source,shuffle=False, batch_size=config.batch_size,  subjects_list=eval_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True)
        
         # Rest of patients training data
@@ -150,7 +150,7 @@ for fold in range(12):
         config.domainclassifier=True
         config.GANloss=True
         config.domain_lambda= 0.01
-        config.fix_sourceclassifier=True #Main difference with normal personalization
+        config.fix_sourceclassifier=True 
         config.pseudolabels = True
         config.weightpslab=0.01
         config.withtargetlabels=False
@@ -252,7 +252,7 @@ for fold in range(12):
                     saver1 = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='output_layer/output-'),max_to_keep=1)
 
                     saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
-                   var_list1 = {}
+                    var_list1 = {}
                     for v1 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'output_layer/output'):
                         tmp = v1.name.replace(v1.name[0:v1.name.index('-')],'output_layer/output')
                         tmp=tmp[:-2]
