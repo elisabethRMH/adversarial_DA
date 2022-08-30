@@ -1,11 +1,20 @@
 '''
-Testing loop for results from adversarial domain adaptation with
-train_semisupSqSlNet_dreem_2nets_pers_clean.py
-train_semisupSqSlNet_dreem_2nets_pers_BN_clean.py
+Test adversarial DA for Dreem dataset
 
-best_model_TRAIN is the result saved at the lowest pseudo-label loss
-best_model_acc is the result saved at the end of training
-
+The components here are:
+    - Source net (feature extractor +  classifier)
+    - Target net (feature extractor + classifier)
+    - Domain discriminator
+    
+Losses are:
+    - discriminator loss (minimax or GAN, GAN loss in final version)
+    - supervised class loss (for the source data, for (few) target data or both)
+    - pseudo-label loss (or cross-entropy loss. pseudo-label loss used in final version)
+    - potential MMD loss: not added in final version
+    
+This version; source network gets data from MASS dataset, target network gets data from the dreem dataset.
+channel from MASS: C4-A1
+channel from dreem: F7-F8
 '''
 
 
@@ -13,70 +22,53 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"]="-1" #force not using GPU!
 import numpy as np
 import tensorflow as tf
-import math
-#from tensorflow.python.client import device_lib
-#print(device_lib.list_local_devices())
-from sklearn.decomposition import PCA
-import shutil, sys
-from datetime import datetime
-import h5py
-import time
+ 
+import sys
+
 from scipy.io import loadmat, savemat
-import copy
 import umap
 import seaborn as sns
 
-#from arnn_sleep_sup import ARNN_Sleep
 from adversarialnetwork_SeqSlNet_2nets_clean import AdversarialNet_SeqSlNet_2nets
 from ada_config import Config
 
-from sklearn.metrics import f1_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import cohen_kappa_score as kap
 import matplotlib.pyplot as plt
 
-from datagenerator_from_list_v2 import DataGenerator
 
 sys.path.insert(0, "/users/sista/ehereman/Documents/code/adapted_tb_classes")
 from subgenfromfile_ReadHuyData import SubGenFromFileHuy
-
-sys.path.insert(0, "/users/sista/ehereman/Documents/code/general")
-from save_functions import *
-from distribution_comparison import distribution_differences
-sys.path.insert(0, "/users/sista/ehereman/Documents/code/adapted_tb_classes")
 from subgenfromfile_epochsave import SubGenFromFile
 
-filename="./dreem_subsets_25pat.mat" #Fz or Fp2, they are in channel 5 #46pat_osaprosp
+from save_functions import *
+
+filename="./dreem_subsets_25pat.mat" 
 
 files_folds=loadmat(filename)
 
 normalize=True
 
-root = '/esat/stadiustempdatasets/ehereman/dreemdata'
 root = '/esat/stadiusdata/public/Dreem'
 source=root+'/processed_tb/dreem25-healthy-headbandpsg2'
 
 number_patients=2
 
-ind=0
-for fold in range(12):
-    for pat_group in range(len(files_folds['test_sub'][0][fold][0])):#int(26/number_patients)):
-                
 
-        test_files=[files_folds['test_sub'][0][fold][0][pat_group]]
-    
+for fold in range(12):
+    for pat_group in range(1):
+        
+        test_files=files_folds['test_sub'][0][fold][0]
+        eval_files=files_folds['eval_sub'][0][fold][0]
+
         config= Config()
         config.epoch_seq_len=10
         config.epoch_step=config.epoch_seq_len
-        config.subjectclassifier_trg = False
-        config.subjectclassifier_src = False
-        
-        
+
+        eval_generator= SubGenFromFile(source,shuffle=False, batch_size=config.batch_size,  subjects_list=eval_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True, file_per_subject=True)
     
         test_generator=SubGenFromFile(source,shuffle=False, batch_size=config.batch_size, subjects_list=test_files, sequence_size=config.epoch_seq_len, normalize_per_subject=True, file_per_subject=True)
 
-        
-            
         # Parameters
         # ==================================================
         #E toevoeging
@@ -90,9 +82,11 @@ for fold in range(12):
         tf.app.flags.DEFINE_boolean("allow_soft_placement", True, "Allow device soft device placement")
         tf.app.flags.DEFINE_boolean("log_device_placement", False, "Log placement of ops on devices")
         
-        dir2= '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/personalization/seqslnet_advDA_fzfp2tofzfp2_fromTL_samenetwork_all_fixSN_fixedbatch32_noKL_pslab_BN2_10epevalevery100_4_shuffle3_subjnorm_fz{:d}pat'.format(number_patients, fold, pat_group)
-        # dir2= '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/personalization/seqslnet_advDA_fzfp2tofzfp2_fromTL_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_lambdaps001_noKL_pslab01-2_10epevalevery100_4_shuffle3_subjnorm_fz{:d}pat'.format(number_patients, fold, pat_group)
-        tf.app.flags.DEFINE_string("out_dir", dir2+'/n{:d}/group{:d}'.format( fold, pat_group), "Point to output directory")
+        dir2='/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/seqslnet_advDA_fzfp2toc34_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_withtargetlab_fnl-hyperparexp20_subjnorm_fz{:d}pat'.format(number_patients)
+        # dir2='/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/seqslnet_advDA_fzfp2tof7f8_fromf7f8mass_samenetwork_all_unfixSN_fixedbatch32_hyperparexp2-1_subjnorm_fz{:d}pat'.format(number_patients)
+        # dir2='/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-dodo/seqslnet_advDA_fzfp2totarget_samenetwork_all_unfixSN_fixedbatch32_hyperparexp2-1_subjnorm_fz{:d}pat'.format(number_patients)
+        
+        tf.app.flags.DEFINE_string("out_dir", dir2+'/n{:d}/group{:d}'.format( fold, pat_group), "Point to output directory")#'/group{:d}'
         tf.app.flags.DEFINE_string("checkpoint_dir", "./checkpoint/", "Point to checkpoint directory")
         
         tf.app.flags.DEFINE_float("dropout_keep_prob_rnn", 0.75, "Dropout keep probability (default: 0.75)")
@@ -105,7 +99,6 @@ for fold in range(12):
         tf.app.flags.DEFINE_integer("attention_size1", 64, "Sequence length (default: 20)")
         
         
-        tf.app.flags.DEFINE_integer('D',100,'Number of features') #new flag!
         
         FLAGS = tf.app.flags.FLAGS
         print("\nParameters:")
@@ -133,41 +126,34 @@ for fold in range(12):
         config.nchannel = 1
         config.training_epoch = int(20) #/6 if using load_random_tuple
         config.same_network=True
-        config.feature_extractor=True
         config.learning_rate=1e-4
         config.mse_weight=1.0
-        config.mult_channel=False
-        config.withtargetlabels=False
+        config.withtargetlabels=True
         config.channel = 3
         config.add_classifieroutput=False
         config.GANloss=True
-        config.domain_lambda= 0.01
+        config.domain_lambda= 0.16
         config.fix_sourceclassifier=False
         config.domainclassifier=True
         config.shareDC=False
         config.shareLC=False
         config.mmd_loss =False
         config.mmd_weight=1
-        config.DCweighting=False
-        config.SNweighting=False
-        config.pseudolabels = True
-        config.DCweightingpslab=False
-        config.SNweightingpslab=False
+        config.pseudolabels = False
         config.weightpslab=1
         config.crossentropy=False
-        config.classheads2=False
-        config.advdropout=False
         config.adversarialentropymin=False
         config.minneighbordiff=False
-        config.nb_subjects= 38
-        config.subject_lambda=0.01
-        config.diffattn=False
-        config.diffepochrnn=False
-        config.regtargetnet=False
-        config.KLregularization=False
-                        
         
+        eval_batches_per_epoch = np.floor(len(eval_generator)).astype(np.uint32)
         test_batches_per_epoch = np.floor(len(test_generator)).astype(np.uint32)
+        
+        #E: nb of epochs in each set (in the sense of little half second windows)
+        print("Eval/Test set: {:d}/{:d}".format( len(eval_generator.datalist), len(test_generator.datalist)))
+        
+        #E: nb of batches to run through whole dataset = nb of sequences (20 consecutive epochs) divided by batch size
+        print("Eval/Test batches per epoch: {:d}/{:d}".format( eval_batches_per_epoch, test_batches_per_epoch))
+        
         
         
         # variable to keep track of best fscore
@@ -187,15 +173,28 @@ for fold in range(12):
             sess = tf.Session(config=session_conf)
             with sess.as_default():
                 arnn=AdversarialNet_SeqSlNet_2nets(config)
-                
-
+                                
+                # Define Training procedure
+                domainclass_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'domainclassifier_net')
+                if config.fix_sourceclassifier: #TODO fix this?
+                    excl= [var for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'seqsleepnet_source') + tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope = 'output_layer/output-%s') ]
+                else:
+                    excl=[]
+                allvars= [var for var in tf.trainable_variables() if (var not in domainclass_vars and var not in excl)]
+                global_step = tf.Variable(0, name="global_step", trainable=False)
+                optimizer = tf.train.AdamOptimizer(config.learning_rate)
+                grads_and_vars = optimizer.compute_gradients(arnn.loss, var_list=allvars)
+                train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+                if config.domainclassifier:
+                    grads_and_vars2 = optimizer.compute_gradients(arnn.domainclass_loss_sum, var_list = domainclass_vars)
+                    train_op2 = optimizer.apply_gradients(grads_and_vars2, global_step=global_step)
         
                 out_dir = os.path.abspath(os.path.join(os.path.curdir,FLAGS.out_dir))
                 print("Writing to {}\n".format(out_dir))
         
                 saver = tf.train.Saver(tf.all_variables(), max_to_keep=1)
 
-                best_dir = os.path.join(checkpoint_path, "best_model_TRAIN")
+                best_dir = os.path.join(checkpoint_path, "best_model_acc")
                 saver.restore(sess, best_dir)
                 print("Model loaded")
         
@@ -206,7 +205,7 @@ for fold in range(12):
                     epoch_seq_len = np.ones(len(x_batch),dtype=int) * config.epoch_seq_len
                     feed_dict = {
                         arnn.target_bool:np.ones(len(x_batch)),
-                        arnn.source_bool: np.ones(len(x_batch)),# np.ones(len(x_batch)),
+                        arnn.source_bool: np.ones(len(x_batch)),
                         arnn.input_x: x_batch,
                         arnn.input_y: y_batch,
                         arnn.dropout_keep_prob_rnn: 1.0,
@@ -216,8 +215,6 @@ for fold in range(12):
                         arnn.weightpslab:config.weightpslab
                     
                     }
-                    if config.subjectclassifier_src or config.subjectclassifier_trg:
-                        feed_dict[arnn.subject]=np.zeros((len(y_batch),config.nb_subjects))               # output_loss, mse_loss, total_loss, yhat, yhattarget = sess.run(
                     output_loss, total_loss, yhat, yhattarget, score, scoretarget, features1, features2 = sess.run(
                            [arnn.output_loss, arnn.loss, arnn.predictions, arnn.predictions_target, arnn.scores, arnn.scores_target, arnn.features1, arnn.features2], feed_dict)
                     return output_loss,total_loss, yhat, yhattarget, score, scoretarget, features1, features2
@@ -234,7 +231,7 @@ for fold in range(12):
                     num_batch_per_epoch = len(gen)
                     test_step = 0
                     ygt =np.zeros([config.epoch_seq_len, len(gen.datalist)])
-                    featC = np.zeros([128,config.epoch_seq_len, len(gen.datalist)])
+                    featsource = np.zeros([128,config.epoch_seq_len, len(gen.datalist)])
                     feattarget= np.zeros([128,config.epoch_seq_len, len(gen.datalist)])
                     while test_step < num_batch_per_epoch-1:
                         (x_batch,y_batch)=gen[test_step]
@@ -244,7 +241,7 @@ for fold in range(12):
                         output_loss += output_loss_
                         total_loss += total_loss_
                         
-                        featC[:,:, (test_step)*config.batch_size : (test_step+1)*config.batch_size] = np.transpose(features1_)
+                        featsource[:,:, (test_step)*config.batch_size : (test_step+1)*config.batch_size] = np.transpose(features1_)
                         feattarget[:,:, (test_step)*config.batch_size : (test_step+1)*config.batch_size] = np.transpose(features2_)
 
                         ygt[:, (test_step)*config.batch_size : (test_step+1)*config.batch_size] = np.transpose(np.argmax(y_batch,axis=2))
@@ -257,6 +254,7 @@ for fold in range(12):
                         test_step += 1
                             
                     if len(gen.datalist) > test_step*config.batch_size:
+
                         (x_batch, y_batch) = gen.get_rest_batch(test_step)
                         x_batch=x_batch[:,:,:,:,[0, config.channel]]
         
@@ -268,7 +266,7 @@ for fold in range(12):
                             score[n, (test_step)*config.batch_size : len(gen.datalist),:] = score_[n]
                             scoretarget[n, (test_step)*config.batch_size : len(gen.datalist),:] = scoretarget_[n]
 
-                        featC[:,:, (test_step)*config.batch_size : len(gen.datalist)] = np.transpose(features1_)
+                        featsource[:,:, (test_step)*config.batch_size : len(gen.datalist)] = np.transpose(features1_)
                         feattarget[:,:, (test_step)*config.batch_size : len(gen.datalist)] = np.transpose(features2_)
         
                         output_loss += output_loss_
@@ -280,12 +278,14 @@ for fold in range(12):
                     print(acc)
                     acc1 = accuracy_score(ygt.flatten(), yhattarget.flatten())
                     print(acc1)
-                    return featC, feattarget, ygt, yhat, yhattarget,score, scoretarget
+                    return featsource, feattarget, ygt, yhat, yhattarget,score, scoretarget
 
-
-        
                 print('Test')
-                feat_c1, feat_target1, ygt1, yyhatc341, yyhattarget1, scorec341, scoretarget1 = evaluate(gen=test_generator)
+                feat_source1, feat_target1, ygt1, yyhatsource1, yyhattarget1, scoresource1, scoretarget1 = evaluate(gen=test_generator)
+                print('Eval')
+                feat_source3, feat_target3, ygt3, yyhatsource3, yyhattarget3, scoresource3, scoretarget3  = evaluate(gen=eval_generator)
         
-                savemat(os.path.join(out_path, "test_ret_TR.mat"), dict(yhat = yyhattarget1, acc = accuracy_score(ygt1.flatten(), yyhattarget1.flatten()),kap=kap(ygt1.flatten(), yyhattarget1.flatten()),
-                                                                      ygt=ygt1, subjects=test_generator.subjects_datalist, score=scoretarget1, scorec34=scorec341)  )              
+                savemat(os.path.join(out_path, "test_ret.mat"), dict(yhat = yyhattarget1, acc = accuracy_score(ygt1.flatten(), yyhattarget1.flatten()),kap=kap(ygt1.flatten(), yyhattarget1.flatten()),
+                                                                      ygt=ygt1, subjects=test_generator.subjects_datalist, score=scoretarget1, scoresource=scoresource1)  )              
+                savemat(os.path.join(out_path, "eval_ret.mat"), dict(yhat = yyhattarget3, acc = accuracy_score(ygt3.flatten(), yyhattarget3.flatten()),kap=kap(ygt3.flatten(), yyhattarget3.flatten()),
+                                                                      ygt=ygt3, subjects=eval_generator.subjects_datalist, score=scoretarget3, scoresource=scoresource3)  )               

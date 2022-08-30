@@ -233,9 +233,6 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                     
                     if not config.same_network: # 2 separate feature extractors
                         sess.run(tf.initialize_all_variables())
-    #                    ##REstore
-    #                    best_dir = os.path.join(checkpoint_path, "best_model_acc")
-    #                    saver.restore(sess, best_dir)
                         saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                         var_list1 = {}
                         for v1 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope= 'output_layer/output'):
@@ -260,9 +257,6 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                     else:          #shared feature extractor           
                         # initialize all variables
                         sess.run(tf.initialize_all_variables())
-    #                    ##REstore
-    #                    best_dir = os.path.join(checkpoint_path, "best_model_acc")
-    #                    saver.restore(sess, best_dir)
                         saver1 = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='output_layer/output-'),max_to_keep=1)
     
                         saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
@@ -275,17 +269,13 @@ def train_nn(files_folds, source, config,foldrange=range(12)):
                         saver1.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                         
                         var_list2= {}
-                        for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source'):
-                            
+                        for v2 in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='seqsleepnet_source'):                            
                             tmp=v2.name[v2.name.find('/')+1:-2]
-                            # if tmp[0]=='2':
-                            #     continue
                             var_list2[tmp]=v2
                         saver2=tf.train.Saver(var_list=var_list2)
                         saver2.restore(sess, os.path.join(checkpoint_path1, "best_model_acc"))
                         
     
-                        # saver1 = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='output_layer'),max_to_keep=1)
                         saver1 = tf.train.Saver(tf.all_variables(), max_to_keep=1)
                     print("Model loaded")
     
@@ -531,39 +521,3 @@ config.minneighbordiff=False
 config.out_dir0 = '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/seqslnet_advDA_fzfp2toc34_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_withtargetlab_fnl-hyperparexp20_subjnorm_fz{:d}pat'.format(config.number_patients)
 train_nn(files_folds, source, config)
 
-# config.domain_lambda= 0.01
-# config.weightpslab=0.1*10/21
-# config.pseudolabels = True
-# config.number_patients=2
-# config.withtargetlabels=True
-# config.minneighbordiff=False
-# config.out_dir0 = '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/seqslnet_advDA_fzfp2toc34_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_lambdaps01adapt_pslab01-2_withtargetlab_hyperparexp2-1_subjnorm_fz{:d}pat'.format(config.number_patients)
-# train_nn(files_folds, source, config,foldrange=range(3,6))
-
-# config.domain_lambda= 0.01
-# config.weightpslab=0.1
-# config.pseudolabels = True
-# config.number_patients=2
-# config.withtargetlabels=False
-# config.out_dir0 = '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/seqslnet_advDA_fzfp2toc34_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_lambdaps01_pslab01-2_hyperparexp2-1_subjnorm_fz{:d}pat'.format(config.number_patients)
-# train_nn(files_folds, source, config)
-
-
-# config.domain_lambda= 0.01
-# config.weightpslab=0.1
-# config.pseudolabels = True
-# config.withtargetlabels=True
-# config.number_patients=2
-# config.minneighbordiff=False
-# config.out_dir0 = '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/seqslnet_advDA_fzfp2toc34_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_lambdaps01_pslab01-2_withtargetlab_hyperparexp2-1_subjnorm_fz{:d}pat'.format(config.number_patients)
-# train_nn(files_folds, source, config)
-
-
-# config.domain_lambda= 0.01
-# config.weightpslab=0.01
-# config.pseudolabels = True
-# config.number_patients=2
-# config.withtargetlabels=False
-# config.minneighbordiff=True
-# config.out_dir0 = '/esat/asterie1/scratch/ehereman/results_adversarialDA/dreem/25pat-mass/seqslnet_advDA_fzfp2toc34_samenetwork_all_unfixSN_fixedbatch32_lambdaadv001_lambdaps001_minneighbordiff_pslab01-2_hyperparexp2-1_subjnorm_fz{:d}pat'.format(config.number_patients)
-# train_nn(files_folds, source, config)
